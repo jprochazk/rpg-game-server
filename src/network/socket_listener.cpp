@@ -8,17 +8,20 @@
 //
 
 #include "socket_listener.h"
-#include "websocket_session.h"
 #include <iostream>
+
+namespace network {
 
 socket_listener::socket_listener(
     net::io_context& ioc,
     tcp::endpoint endpoint,
-    boost::shared_ptr<socket_manager> const& socket_manager)   
+    socket_manager* socket_manager)   
     : ioc_(ioc)
     , acceptor_(ioc)
-    , socket_manager_(socket_manager)
+    , smgr_(socket_manager)
 {
+    spdlog::info("Starting socket listener");
+
     beast::error_code ec;
 
     // Open the acceptor
@@ -71,7 +74,7 @@ void socket_listener::fail(beast::error_code ec, char const* what)
     // Don't report on canceled operations
     if (ec == net::error::operation_aborted)
         return;
-    std::cerr << what << ": " << ec.message() << "\n";
+    spdlog::error("{}: {}", what, ec.message());
 }
 
 // Handle a connection
@@ -81,9 +84,9 @@ void socket_listener::on_accept(beast::error_code ec, tcp::socket socket)
         return fail(ec, "accept");
     } else {
         // Launch a new session for this connection
-        boost::make_shared<websocket_session>(
+        std::make_shared<websocket>(
             std::move(socket),
-            socket_manager_
+            smgr_
         )->run();
     }
     // The new connection gets its own strand
@@ -93,3 +96,5 @@ void socket_listener::on_accept(beast::error_code ec, tcp::socket socket)
             &socket_listener::on_accept,
             shared_from_this()));
 }
+    
+}; // namespace network

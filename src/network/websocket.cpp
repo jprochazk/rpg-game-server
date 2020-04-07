@@ -7,33 +7,35 @@
 // Official repository: https://github.com/vinniefalco/CppCon2018
 //
 
-#include "websocket_session.h"
+#include "websocket.h"
 #include <iostream>
 
-websocket_session::websocket_session(
+namespace network {
+
+websocket::websocket(
     tcp::socket&& socket,
-    boost::shared_ptr<socket_manager> const& state)
+    socket_manager* socket_manager)
     : ws_(std::move(socket))
-    , state_(state)
+    , smgr_(socket_manager)
 {
 }
 
-websocket_session::~websocket_session()
+websocket::~websocket()
 {
     // Remove this session from the list of active sessions
-    state_->leave(this);
+    smgr_->socket_leave(this);
 }
 
-void websocket_session::run()
+void websocket::run()
 {
     // Set suggested timeout settings for the websocket
     ws_.set_option(
-        websocket::stream_base::timeout::suggested(
+        beast::websocket::stream_base::timeout::suggested(
             beast::role_type::server));
 
     // Set a decorator to change the Server of the handshake
-    ws_.set_option(websocket::stream_base::decorator(
-        [](websocket::response_type& res)
+    ws_.set_option(beast::websocket::stream_base::decorator(
+        [](beast::websocket::response_type& res)
     {
         res.set(http::field::server,
             std::string(BOOST_BEAST_VERSION_STRING) +
@@ -43,45 +45,42 @@ void websocket_session::run()
     // Accept the websocket handshake
     ws_.async_accept(
         beast::bind_front_handler(
-            &websocket_session::on_accept,
+            &websocket::on_accept,
             shared_from_this()));
 }
 
-void websocket_session::fail(beast::error_code ec, char const* what)
+void websocket::fail(beast::error_code ec, char const* what)
 {
     // Don't report these
     if (ec == net::error::operation_aborted ||
-        ec == websocket::error::closed)
+        ec == beast::websocket::error::closed)
         return;
 
-    std::cerr << what << ": " << ec.message() << "\n";
+    spdlog::error("{}: {}", what, ec.message());
 }
 
-void websocket_session::on_accept(beast::error_code ec)
+void websocket::on_accept(beast::error_code ec)
 {
     // Handle the error, if any
     if (ec)
         return fail(ec, "accept");
 
     // Add this session to the list of active sessions
-    state_->join(this);
+    smgr_->socket_join(this);
 
     // Read a message
     ws_.async_read(
         buffer_,
         beast::bind_front_handler(
-            &websocket_session::on_read,
+            &websocket::on_read,
             shared_from_this()));
 }
 
-void websocket_session::on_read(beast::error_code ec, std::size_t)
+void websocket::on_read(beast::error_code ec, std::size_t)
 {
     // Handle the error, if any
     if (ec)
         return fail(ec, "read");
-
-    // Send to all connections
-    state_->send(beast::buffers_to_string(buffer_.data()));
 
     // Clear the buffer
     buffer_.consume(buffer_.size());
@@ -90,11 +89,11 @@ void websocket_session::on_read(beast::error_code ec, std::size_t)
     ws_.async_read(
         buffer_,
         beast::bind_front_handler(
-            &websocket_session::on_read,
+            &websocket::on_read,
             shared_from_this()));
 }
 
-void websocket_session::send(boost::shared_ptr<std::string const> const& ss)
+void websocket::send(std::shared_ptr<std::string const> const& ss)
 {
     // Post our work to the strand, this ensures
     // that the members of `this` will not be
@@ -103,15 +102,15 @@ void websocket_session::send(boost::shared_ptr<std::string const> const& ss)
     net::post(
         ws_.get_executor(),
         beast::bind_front_handler(
-            &websocket_session::on_send,
+            &websocket::on_send,
             shared_from_this(),
             ss));
 }
 
-void websocket_session::on_send(boost::shared_ptr<std::string const> const& ss)
+void websocket::on_send(std::shared_ptr<std::string const> const& ss)
 {
     // Always add to queue
-    queue_.push_back(ss);
+    write_queue_.push_back(ss);
 
     // Are we already writing?
     if (is_async_writing_)
@@ -121,30 +120,32 @@ void websocket_session::on_send(boost::shared_ptr<std::string const> const& ss)
 
     // We are not currently writing, so send this immediately
     ws_.async_write(
-        net::buffer(*queue_.front()),
+        net::buffer(*write_queue_.front()),
         beast::bind_front_handler(
-            &websocket_session::on_write,
+            &websocket::on_write,
             shared_from_this()));
 }
 
-void websocket_session::on_write(beast::error_code ec, std::size_t)
+void websocket::on_write(beast::error_code ec, std::size_t)
 {
     // Handle the error, if any
     if (ec)
         return fail(ec, "write");
 
     // Remove the string from the queue
-    queue_.erase(queue_.begin());
+    write_queue_.erase(write_queue_.begin());
 
     // Send the next message if any
-    if (queue_.empty()) {
+    if (write_queue_.empty()) {
         is_async_writing_ = false;
         return;
     }
 
     ws_.async_write(
-        net::buffer(*queue_.front()),
+        net::buffer(*write_queue_.front()),
         beast::bind_front_handler(
-            &websocket_session::on_write,
+            &websocket::on_write,
             shared_from_this()));
 }
+    
+}; // namespace network
