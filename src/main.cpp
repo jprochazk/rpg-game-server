@@ -13,7 +13,7 @@
 */
 //------------------------------------------------------------------------------
 
-#include "network/socket_listener.h"
+#include "network/SocketListener.h"
 #include "world/World.h"
 
 #include <boost/smart_ptr.hpp>
@@ -55,7 +55,7 @@ main(int argc, char* argv[])
 
 	spdlog::info("Starting server at {}:{}", address, port);
 	//instantiate world
-	world::World::Instance();
+	World::Instance();
 
 	auto network_thread = std::thread([&] {
 		// The io_context is required for all I/O
@@ -64,11 +64,11 @@ main(int argc, char* argv[])
 		spdlog::info("Starting network thread");
 
 		// Create and launch a listening port
-		std::make_shared<network::socket_listener>(
+		std::make_shared<SocketListener>(
 			ioc,
 			tcp::endpoint{ net::ip::make_address(address), port },
-			world::World::Instance()->GetSocketManager()
-		)->run();
+			World::Instance()->GetSocketManager()
+		)->Run();
 
 		// Run the I/O service on the requested number of threads
 		ioc.run();
@@ -79,7 +79,7 @@ main(int argc, char* argv[])
 		auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_update);
 		if (elapsed.count() >= 1000) {
 			last_update = std::chrono::steady_clock::now();
-			world::World::Instance()->Update();
+			World::Instance()->Update();
 		}
 	}
 

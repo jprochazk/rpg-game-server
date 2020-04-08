@@ -7,18 +7,16 @@
 // Official repository: https://github.com/vinniefalco/CppCon2018
 //
 
-#include "socket_listener.h"
+#include "SocketListener.h"
 #include <iostream>
 
-namespace network {
-
-socket_listener::socket_listener(
+SocketListener::SocketListener(
     net::io_context& ioc,
     tcp::endpoint endpoint,
-    socket_manager* socket_manager)   
+    SocketManager* socket_manager)   
     : ioc_(ioc)
     , acceptor_(ioc)
-    , smgr_(socket_manager)
+    , socketManager_(socket_manager)
 {
     spdlog::info("Starting socket listener");
 
@@ -28,7 +26,7 @@ socket_listener::socket_listener(
     acceptor_.open(endpoint.protocol(), ec);
     if (ec)
     {
-        fail(ec, "open");
+        Fail(ec, "open");
         return;
     }
 
@@ -36,7 +34,7 @@ socket_listener::socket_listener(
     acceptor_.set_option(net::socket_base::reuse_address(true), ec);
     if (ec)
     {
-        fail(ec, "set_option");
+        Fail(ec, "set_option");
         return;
     }
 
@@ -44,7 +42,7 @@ socket_listener::socket_listener(
     acceptor_.bind(endpoint, ec);
     if (ec)
     {
-        fail(ec, "bind");
+        Fail(ec, "bind");
         return;
     }
 
@@ -53,23 +51,23 @@ socket_listener::socket_listener(
         net::socket_base::max_listen_connections, ec);
     if (ec)
     {
-        fail(ec, "listen");
+        Fail(ec, "listen");
         return;
     }
 }
 
-void socket_listener::run()
+void SocketListener::Run()
 {
     // The new connection gets its own strand
     acceptor_.async_accept(
         net::make_strand(ioc_),
         beast::bind_front_handler(
-            &socket_listener::on_accept,
+            &SocketListener::OnAccept,
             shared_from_this()));
 }
 
 // Report a failure
-void socket_listener::fail(beast::error_code ec, char const* what)
+void SocketListener::Fail(beast::error_code ec, char const* what)
 {
     // Don't report on canceled operations
     if (ec == net::error::operation_aborted)
@@ -78,23 +76,21 @@ void socket_listener::fail(beast::error_code ec, char const* what)
 }
 
 // Handle a connection
-void socket_listener::on_accept(beast::error_code ec, tcp::socket socket)
+void SocketListener::OnAccept(beast::error_code ec, tcp::socket socket)
 {
     if (ec) {
-        return fail(ec, "accept");
+        return Fail(ec, "accept");
     } else {
         // Launch a new session for this connection
-        std::make_shared<websocket>(
+        std::make_shared<Websocket>(
             std::move(socket),
-            smgr_
-        )->run();
+            socketManager_
+        )->Run();
     }
     // The new connection gets its own strand
     acceptor_.async_accept(
         net::make_strand(ioc_),
         beast::bind_front_handler(
-            &socket_listener::on_accept,
+            &SocketListener::OnAccept,
             shared_from_this()));
 }
-    
-}; // namespace network

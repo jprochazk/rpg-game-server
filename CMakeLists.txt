@@ -7,6 +7,8 @@ project(server VERSION "0.1.0" LANGUAGES CXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# can't get it to work otherwise
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 
 if(("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang"))
@@ -19,7 +21,7 @@ endif()
 
 # ---- EXECUTABLE ----
 
-add_executable(server src/main.cpp $ENV{SERVER_SOURCES})
+add_executable(server src/main.cpp)
 
 # ---- DEPENDENCIES ----
 
@@ -39,13 +41,14 @@ target_include_directories(server PRIVATE ${spdlog_INCLUDE_DIRS})
 target_link_libraries(server PRIVATE spdlog::spdlog_header_only)
 
 # ---- SOURCES ----
-target_include_directories(server PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+include_directories(${CMAKE_SOURCE_DIR}/src)
 set(
     MY_SOURCES
     # network
-    src/network/socket_listener.cpp
-    src/network/websocket.cpp
+    src/network/SocketListener.cpp
+    src/network/Websocket.cpp
     # world
     src/world/World.cpp
+    src/world/WorldSocketManager.cpp
 )
 target_sources(server PRIVATE ${MY_SOURCES})

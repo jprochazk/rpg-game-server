@@ -7,26 +7,24 @@
 // Official repository: https://github.com/vinniefalco/CppCon2018
 //
 
-#include "websocket.h"
+#include "Websocket.h"
 #include <iostream>
 
-namespace network {
-
-websocket::websocket(
+Websocket::Websocket(
     tcp::socket&& socket,
-    socket_manager* socket_manager)
+    SocketManager* socketManager)
     : ws_(std::move(socket))
-    , smgr_(socket_manager)
+    , socketManager_(socketManager)
 {
 }
 
-websocket::~websocket()
+Websocket::~Websocket()
 {
     // Remove this session from the list of active sessions
-    smgr_->socket_leave(this);
+    socketManager_->Remove(this);
 }
 
-void websocket::run()
+void Websocket::Run()
 {
     // Set suggested timeout settings for the websocket
     ws_.set_option(
@@ -45,11 +43,11 @@ void websocket::run()
     // Accept the websocket handshake
     ws_.async_accept(
         beast::bind_front_handler(
-            &websocket::on_accept,
+            &Websocket::OnAccept,
             shared_from_this()));
 }
 
-void websocket::fail(beast::error_code ec, char const* what)
+void Websocket::Fail(beast::error_code ec, char const* what)
 {
     // Don't report these
     if (ec == net::error::operation_aborted ||
@@ -59,28 +57,28 @@ void websocket::fail(beast::error_code ec, char const* what)
     spdlog::error("{}: {}", what, ec.message());
 }
 
-void websocket::on_accept(beast::error_code ec)
+void Websocket::OnAccept(beast::error_code ec)
 {
     // Handle the error, if any
     if (ec)
-        return fail(ec, "accept");
+        return Fail(ec, "accept");
 
     // Add this session to the list of active sessions
-    smgr_->socket_join(this);
+    socketManager_->Add(this);
 
     // Read a message
     ws_.async_read(
         buffer_,
         beast::bind_front_handler(
-            &websocket::on_read,
+            &Websocket::OnRead,
             shared_from_this()));
 }
 
-void websocket::on_read(beast::error_code ec, std::size_t)
+void Websocket::OnRead(beast::error_code ec, std::size_t)
 {
     // Handle the error, if any
     if (ec)
-        return fail(ec, "read");
+        return Fail(ec, "read");
 
     // Clear the buffer
     buffer_.consume(buffer_.size());
@@ -89,11 +87,11 @@ void websocket::on_read(beast::error_code ec, std::size_t)
     ws_.async_read(
         buffer_,
         beast::bind_front_handler(
-            &websocket::on_read,
+            &Websocket::OnRead,
             shared_from_this()));
 }
 
-void websocket::send(std::shared_ptr<std::string const> const& ss)
+void Websocket::Send(std::shared_ptr<std::string const> const& ss)
 {
     // Post our work to the strand, this ensures
     // that the members of `this` will not be
@@ -102,50 +100,48 @@ void websocket::send(std::shared_ptr<std::string const> const& ss)
     net::post(
         ws_.get_executor(),
         beast::bind_front_handler(
-            &websocket::on_send,
+            &Websocket::OnSend,
             shared_from_this(),
             ss));
 }
 
-void websocket::on_send(std::shared_ptr<std::string const> const& ss)
+void Websocket::OnSend(std::shared_ptr<std::string const> const& ss)
 {
     // Always add to queue
-    write_queue_.push_back(ss);
+    writeQueue_.push_back(ss);
 
     // Are we already writing?
-    if (is_async_writing_)
+    if (isAsyncWriting_)
         return;
 
-    is_async_writing_ = true;
+    isAsyncWriting_ = true;
 
     // We are not currently writing, so send this immediately
     ws_.async_write(
-        net::buffer(*write_queue_.front()),
+        net::buffer(*writeQueue_.front()),
         beast::bind_front_handler(
-            &websocket::on_write,
+            &Websocket::OnWrite,
             shared_from_this()));
 }
 
-void websocket::on_write(beast::error_code ec, std::size_t)
+void Websocket::OnWrite(beast::error_code ec, std::size_t)
 {
     // Handle the error, if any
     if (ec)
-        return fail(ec, "write");
+        return Fail(ec, "write");
 
     // Remove the string from the queue
-    write_queue_.erase(write_queue_.begin());
+    writeQueue_.erase(writeQueue_.begin());
 
     // Send the next message if any
-    if (write_queue_.empty()) {
-        is_async_writing_ = false;
+    if (writeQueue_.empty()) {
+        isAsyncWriting_ = false;
         return;
     }
 
     ws_.async_write(
-        net::buffer(*write_queue_.front()),
+        net::buffer(*writeQueue_.front()),
         beast::bind_front_handler(
-            &websocket::on_write,
+            &Websocket::OnWrite,
             shared_from_this()));
 }
-    
-}; // namespace network
