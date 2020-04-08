@@ -13,16 +13,19 @@ public:
     static World* Instance();
     WorldSocketManager* GetSocketManager();
 
-    void Update();
-private: // components
-    WorldSocketManager socketManager_;
+    void Start(std::atomic<bool>* exitSignal, int loopInterval = 1000);
 
 private:
     World();
     ~World();
 
+    void Update();
+
+    WorldSocketManager socketManager_;
+
     std::mutex sessionsLock_;
     std::unordered_set<Websocket*> sessions_;
+    unsigned loopCount_;
 }; // class World
 
 

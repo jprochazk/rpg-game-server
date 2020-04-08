@@ -28,14 +28,15 @@
 #include <atomic>
 #include <csignal>
 
-std::atomic<bool> shouldExit = false;
+std::atomic<bool> exitSignal = false;
 void SignalHandler(boost::system::error_code const& error, int signalNum) 
 {
+	std::cout << std::endl;
 	spdlog::info("Received signal {}", signalNum);
 	if(error) {
 		spdlog::info("Error: {}", error.message());
 	}
-	shouldExit.store(true, std::memory_order_release);
+	exitSignal.store(true, std::memory_order_release);
 }
 
 int main(int argc, char* argv[])
@@ -93,15 +94,8 @@ int main(int argc, char* argv[])
 		thread->join();
 		delete thread;
 	});
-	
-	auto last_update = std::chrono::steady_clock::now();
-	while (!shouldExit.load(std::memory_order_acquire)) {
-		auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_update);
-		if (elapsed.count() >= 1000) {
-			last_update = std::chrono::steady_clock::now();
-			World::Instance()->Update();
-		}
-	}
+
+	World::Instance()->Start(&exitSignal);
 
 	return EXIT_SUCCESS;
 }

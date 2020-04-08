@@ -32,8 +32,23 @@ WorldSocketManager* World::GetSocketManager()
     return &socketManager_;
 }
 
+void World::Start(std::atomic<bool>* exitSignal, int loopInterval)
+{
+	auto last_update = std::chrono::steady_clock::now();
+	while (!exitSignal->load(std::memory_order_acquire)) {
+		auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_update);
+		if (elapsed.count() >= loopInterval) {
+			last_update = std::chrono::steady_clock::now();
+
+			this->Update();
+		}
+	}
+}
+
 void World::Update()
 {
+    spdlog::info("World update #{}", loopCount_++);
+
     const auto ss = std::string("No small string optimization! :)");
 
     std::vector<std::weak_ptr<Websocket>> v;
