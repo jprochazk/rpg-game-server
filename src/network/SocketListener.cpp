@@ -18,7 +18,6 @@ SocketListener::SocketListener(
     , acceptor_(ioc)
     , socketManager_(socket_manager)
 {
-    spdlog::info("Starting socket listener");
 
     beast::error_code ec;
 
@@ -56,6 +55,10 @@ SocketListener::SocketListener(
     }
 }
 
+SocketListener::~SocketListener()
+{
+}
+
 void SocketListener::Run()
 {
     // The new connection gets its own strand
@@ -64,6 +67,7 @@ void SocketListener::Run()
         beast::bind_front_handler(
             &SocketListener::OnAccept,
             shared_from_this()));
+    spdlog::info("Socket listener opened");
 }
 
 // Report a failure

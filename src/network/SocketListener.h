@@ -26,6 +26,7 @@ public: // public interface
         net::io_context& ioc,
         tcp::endpoint endpoint,
         SocketManager* socket_manager);
+    ~SocketListener();
 
     void Run();
 private: // internal

@@ -4,8 +4,6 @@
 World::World()
     : socketManager_()
 {
-    spdlog::info("World instantiated");
-
     socketManager_.SetOnSocketAdd([&](Websocket* session) {
         std::lock_guard<std::mutex> lock(sessionsLock_);
         sessions_.insert(session);
@@ -15,11 +13,12 @@ World::World()
         std::lock_guard<std::mutex> lock(sessionsLock_);
         sessions_.erase(session);
     });
+
+    spdlog::info("World initialized");
 }
 
 World::~World()
 {
-
 }
 
 World* World::Instance()
@@ -35,7 +34,7 @@ WorldSocketManager* World::GetSocketManager()
 
 void World::Update()
 {
-    auto const ss = std::make_shared<std::string const>(std::string("hello"));
+    const auto ss = std::string("No small string optimization! :)");
 
     std::vector<std::weak_ptr<Websocket>> v;
     {

@@ -7,6 +7,7 @@
 class WorldSocketManager : public SocketManager {
 public:
     WorldSocketManager();
+    ~WorldSocketManager();
     
     void Add(Websocket* session) override;
     void Remove(Websocket* session) override;

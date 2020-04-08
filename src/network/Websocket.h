@@ -40,19 +40,19 @@ public:
     ~Websocket();
 
     void Run();
-    void Send(std::shared_ptr<std::string const> const& ss);
+    void Send(const std::string ss);
 private:
     beast::flat_buffer buffer_;
     beast::websocket::stream<beast::tcp_stream> ws_;
     bool isAsyncWriting_;
-    std::vector<std::shared_ptr<std::string const>> writeQueue_;
+    std::vector<std::string> writeQueue_;
     SocketManager* socketManager_;
 
     void Fail(beast::error_code ec, char const* what);
     void OnAccept(beast::error_code ec);
     void OnRead(beast::error_code ec, std::size_t bytes_transferred);
     void OnWrite(beast::error_code ec, std::size_t bytes_transferred);
-    void OnSend(std::shared_ptr<std::string const> const& ss);
+    void OnSend(const std::string ss);
 }; // class Websocket
 
 #endif // SERVER_NETWORK_WEBSOCKET_H

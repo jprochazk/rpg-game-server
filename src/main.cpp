@@ -13,6 +13,7 @@
 */
 //------------------------------------------------------------------------------
 
+#include "network/net.h"
 #include "network/SocketListener.h"
 #include "world/World.h"
 
@@ -25,9 +26,19 @@
 #include <thread>
 #include <string>
 #include <atomic>
+#include <csignal>
 
-int
-main(int argc, char* argv[])
+std::atomic<bool> shouldExit = false;
+void SignalHandler(boost::system::error_code const& error, int signalNum) 
+{
+	spdlog::info("Received signal {}", signalNum);
+	if(error) {
+		spdlog::info("Error: {}", error.message());
+	}
+	shouldExit.store(true, std::memory_order_release);
+}
+
+int main(int argc, char* argv[])
 {
 	if(argc < 2 || argc > 3) {
 		std::cout 	<< "\n"
@@ -57,11 +68,15 @@ main(int argc, char* argv[])
 	//instantiate world
 	World::Instance();
 
-	auto network_thread = std::thread([&] {
-		// The io_context is required for all I/O
-		net::io_context ioc;
+	// The io_context is required for all I/O
+	net::io_context ioc;
 
+	std::shared_ptr<std::thread> network_thread(new std::thread(
+	[&] {
 		spdlog::info("Starting network thread");
+
+		net::signal_set signals(ioc, SIGINT, SIGTERM);
+		signals.async_wait(SignalHandler);
 
 		// Create and launch a listening port
 		std::make_shared<SocketListener>(
@@ -72,18 +87,21 @@ main(int argc, char* argv[])
 
 		// Run the I/O service on the requested number of threads
 		ioc.run();
+	}), 
+	[&ioc](std::thread* thread) {
+		ioc.stop();
+		thread->join();
+		delete thread;
 	});
 	
 	auto last_update = std::chrono::steady_clock::now();
-	for (;;) {
+	while (!shouldExit.load(std::memory_order_acquire)) {
 		auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_update);
 		if (elapsed.count() >= 1000) {
 			last_update = std::chrono::steady_clock::now();
 			World::Instance()->Update();
 		}
 	}
-
-	network_thread.join();
 
 	return EXIT_SUCCESS;
 }

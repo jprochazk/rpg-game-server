@@ -6,7 +6,11 @@ WorldSocketManager::WorldSocketManager()
     , socketAddCallback_(nullptr)
     , socketRemoveCallback_(nullptr)
 {
-    spdlog::info("WorldSocketManager instantiated");
+    spdlog::info("WorldSocketManager opened");
+}
+
+WorldSocketManager::~WorldSocketManager()
+{
 }
 
 void WorldSocketManager::SetOnSocketAdd(std::function<void(Websocket*)> callback)

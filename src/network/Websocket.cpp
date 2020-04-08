@@ -22,6 +22,7 @@ Websocket::~Websocket()
 {
     // Remove this session from the list of active sessions
     socketManager_->Remove(this);
+    spdlog::info("Socket closed");
 }
 
 void Websocket::Run()
@@ -66,6 +67,8 @@ void Websocket::OnAccept(beast::error_code ec)
     // Add this session to the list of active sessions
     socketManager_->Add(this);
 
+    spdlog::info("Socket opened");
+
     // Read a message
     ws_.async_read(
         buffer_,
@@ -91,7 +94,7 @@ void Websocket::OnRead(beast::error_code ec, std::size_t)
             shared_from_this()));
 }
 
-void Websocket::Send(std::shared_ptr<std::string const> const& ss)
+void Websocket::Send(const std::string ss)
 {
     // Post our work to the strand, this ensures
     // that the members of `this` will not be
@@ -105,7 +108,7 @@ void Websocket::Send(std::shared_ptr<std::string const> const& ss)
             ss));
 }
 
-void Websocket::OnSend(std::shared_ptr<std::string const> const& ss)
+void Websocket::OnSend(const std::string ss)
 {
     // Always add to queue
     writeQueue_.push_back(ss);
@@ -118,7 +121,7 @@ void Websocket::OnSend(std::shared_ptr<std::string const> const& ss)
 
     // We are not currently writing, so send this immediately
     ws_.async_write(
-        net::buffer(*writeQueue_.front()),
+        net::buffer(writeQueue_.front()),
         beast::bind_front_handler(
             &Websocket::OnWrite,
             shared_from_this()));
@@ -133,14 +136,15 @@ void Websocket::OnWrite(beast::error_code ec, std::size_t)
     // Remove the string from the queue
     writeQueue_.erase(writeQueue_.begin());
 
-    // Send the next message if any
+    // Stop writing if the queue is empty
     if (writeQueue_.empty()) {
         isAsyncWriting_ = false;
         return;
     }
 
+    // Write another
     ws_.async_write(
-        net::buffer(*writeQueue_.front()),
+        net::buffer(writeQueue_.front()),
         beast::bind_front_handler(
             &Websocket::OnWrite,
             shared_from_this()));
