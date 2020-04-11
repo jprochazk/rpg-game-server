@@ -13,26 +13,19 @@
 */
 //------------------------------------------------------------------------------
 
+#include "common/SharedDefines.h"
 #include "network/net.h"
 #include "network/SocketListener.h"
 #include "world/World.h"
 
 #include <boost/smart_ptr.hpp>
 #include <spdlog/spdlog.h>
-#include <iostream>
-#include <vector>
-#include <chrono>
-#include <functional>
-#include <thread>
-#include <string>
-#include <atomic>
-#include <csignal>
 
 std::atomic<bool> exitSignal = false;
 void SignalHandler(boost::system::error_code const& error, int signalNum) 
 {
 	std::cout << std::endl;
-	spdlog::info("Received signal {}", signalNum);
+	spdlog::info("Received signal {}", (signalNum == SIGINT) ? "SIGINT" : "SIGTERM");
 	if(error) {
 		spdlog::info("Error: {}", error.message());
 	}
@@ -41,20 +34,31 @@ void SignalHandler(boost::system::error_code const& error, int signalNum)
 
 int main(int argc, char* argv[])
 {
-	if(argc < 2 || argc > 3) {
+	if(argc > 3) {
 		std::cout 	<< "\n"
 					<< "Usage: " << argv[0] << " <address> [port]\n"
 					<< "\n"
-					<< "address\t - server address, e.g. 127.0.0.1\n"
+					<< "address\t - server address, default is 127.0.0.1\n"
 					<< "port\t - optional server port, default is 8001\n"
 					<< std::endl;
 
 		return 0;
 	}
 	
-	auto address = argv[1];
+	std::string address_str;
+	net::ip::address address;
+	if(argc > 1) {
+		address_str = argv[1];
+		try {
+			address = net::ip::make_address(address_str);
+		} catch(...) {
+			std::cerr << "Invalid address \"" << argv[1] << "\"" << std::endl;
+			return EXIT_FAILURE;
+		}
+	}
+	
 	uint16_t port;
-	if(argc == 3) {
+	if(argc > 2) {
 		try {
 			port = static_cast<uint16_t>(std::atoi(argv[2]));
 		} catch(...) {
@@ -65,8 +69,9 @@ int main(int argc, char* argv[])
 		port = 8001U;
 	}
 
-	spdlog::info("Starting server at {}:{}", address, port);
-	//instantiate world
+	spdlog::info("Starting server at {}:{}", address_str, port);
+
+	// instantiate world singleton
 	World::Instance();
 
 	// The io_context is required for all I/O
@@ -82,7 +87,7 @@ int main(int argc, char* argv[])
 		// Create and launch a listening port
 		std::make_shared<SocketListener>(
 			ioc,
-			tcp::endpoint{ net::ip::make_address(address), port },
+			tcp::endpoint{ address, port },
 			World::Instance()->GetSocketManager()
 		)->Run();
 
@@ -95,7 +100,7 @@ int main(int argc, char* argv[])
 		delete thread;
 	});
 
-	World::Instance()->Start(&exitSignal);
+	World::Instance()->StartMainLoop(&exitSignal, 1, 5);
 
 	return EXIT_SUCCESS;
 }

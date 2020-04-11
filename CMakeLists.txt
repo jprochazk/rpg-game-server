@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.17.0 FATAL_ERROR)
 
 project(server VERSION "0.1.0" LANGUAGES CXX)
 
@@ -44,11 +44,16 @@ target_link_libraries(server PRIVATE spdlog::spdlog_header_only)
 include_directories(${CMAKE_SOURCE_DIR}/src)
 set(
     MY_SOURCES
+    # common
+    src/common/endianness.h
+    src/common/ByteBuffer.cpp
     # network
     src/network/SocketListener.cpp
     src/network/Websocket.cpp
     # world
     src/world/World.cpp
     src/world/WorldSocketManager.cpp
+    src/world/WorldSession.cpp
+    src/world/WorldTime.cpp
 )
 target_sources(server PRIVATE ${MY_SOURCES})

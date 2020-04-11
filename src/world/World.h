@@ -1,20 +1,25 @@
 
+#pragma once
 #ifndef SERVER_WORLD_WORLD_H
 #define SERVER_WORLD_WORLD_H
 
-#include "network/Websocket.h"
+#include "common/SharedDefines.h"
 #include "world/WorldSocketManager.h"
+#include "world/WorldSession.h"
+#include "world/WorldTime.h"
+#include <unordered_map>
 
-#include <unordered_set>
-#include <spdlog/spdlog.h>
+class Websocket;
 
 class World {
 public:
     static World* Instance();
     WorldSocketManager* GetSocketManager();
 
-    void Start(std::atomic<bool>* exitSignal, int loopInterval = 1000);
+    void StartMainLoop(std::atomic<bool>* exitSignal, float updateRate = 30, int maxConsecutiveUpdates = 5);
 
+    WorldTime::TimePoint GetWorldTime();
+    std::string GetWorldDate();
 private:
     World();
     ~World();
@@ -22,10 +27,16 @@ private:
     void Update();
 
     WorldSocketManager socketManager_;
-
-    std::mutex sessionsLock_;
-    std::unordered_set<Websocket*> sessions_;
+    
     unsigned loopCount_;
+    WorldTime::TimePoint worldTime_;
+    
+    std::mutex sessionsLock_;
+    uint16_t sessionIdSequence_;
+    std::unordered_map<uint16_t, std::shared_ptr<WorldSession>> sessions_;
+    
+    // TODO: finish sessions
+    // std::vector<WorldSession> sessions_;
 }; // class World
 
 

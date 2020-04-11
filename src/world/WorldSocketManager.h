@@ -1,8 +1,12 @@
 
+#pragma once
 #ifndef SERVER_WORLD_WORLD_SOCKET_MANAGER_H
 #define SERVER_WORLD_WORLD_SOCKET_MANAGER_H
 
-#include "network/Websocket.h"
+#include "common/SharedDefines.h"
+#include "network/SocketManager.h"
+
+class Websocket;
 
 class WorldSocketManager : public SocketManager {
 public:

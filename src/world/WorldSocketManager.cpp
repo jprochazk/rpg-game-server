@@ -1,5 +1,6 @@
 
 #include "WorldSocketManager.h"
+#include "network/Websocket.h"
 
 WorldSocketManager::WorldSocketManager()
     : SocketManager()

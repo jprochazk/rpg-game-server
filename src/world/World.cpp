@@ -1,17 +1,31 @@
 
 #include "World.h"
+#include "network/Websocket.h"
 
 World::World()
     : socketManager_()
+    , loopCount_(0)
+    , worldTime_(WorldTime::Now())
+    , sessionsLock_()
+    , sessionIdSequence_(0)
+    , sessions_()
 {
-    socketManager_.SetOnSocketAdd([&](Websocket* session) {
+    socketManager_.SetOnSocketAdd([&](Websocket* socket) {
         std::lock_guard<std::mutex> lock(sessionsLock_);
-        sessions_.insert(session);
+        sessions_.insert(std::make_pair(
+            sessionIdSequence_, 
+            std::make_shared<WorldSession>(sessionIdSequence_, socket)
+        ));
     });
 
-    socketManager_.SetOnSocketRemove([&](Websocket* session) {
+    socketManager_.SetOnSocketRemove([&](Websocket* socket) {
         std::lock_guard<std::mutex> lock(sessionsLock_);
-        sessions_.erase(session);
+        for(auto it = sessions_.begin(); it != sessions_.end(); it++) {
+            if(it->second->CompareSocketPtr(socket)) {
+                sessions_.erase(it);
+                break;
+            }
+        }
     });
 
     spdlog::info("World initialized");
@@ -32,34 +46,40 @@ WorldSocketManager* World::GetSocketManager()
     return &socketManager_;
 }
 
-void World::Start(std::atomic<bool>* exitSignal, int loopInterval)
+void World::StartMainLoop(std::atomic<bool>* exitSignal, float updateRate, int maxConsecutiveUpdates)
 {
-	auto last_update = std::chrono::steady_clock::now();
-	while (!exitSignal->load(std::memory_order_acquire)) {
-		auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_update);
-		if (elapsed.count() >= loopInterval) {
-			last_update = std::chrono::steady_clock::now();
+    auto shouldExit = [&exitSignal]()->bool { 
+        return exitSignal->load(std::memory_order_acquire); 
+    };
 
+    WorldTime::Duration updateTimeDelta(1000.f / updateRate);
+    auto consecutiveUpdates = 0;
+
+	while (!shouldExit()) {
+        while(WorldTime::Now() > worldTime_ && consecutiveUpdates < maxConsecutiveUpdates) {
 			this->Update();
-		}
+
+            worldTime_ += updateTimeDelta;
+        }
 	}
+}
+
+WorldTime::TimePoint World::GetWorldTime()
+{
+    return worldTime_;
+}
+
+std::string World::GetWorldDate()
+{
+    return WorldTime::ToString(worldTime_);
 }
 
 void World::Update()
 {
-    spdlog::info("World update #{}", loopCount_++);
-
-    const auto ss = std::string("No small string optimization! :)");
-
-    std::vector<std::weak_ptr<Websocket>> v;
-    {
+    { // update sessions
         std::lock_guard<std::mutex> lock(sessionsLock_);
-        v.reserve(sessions_.size());
-        for (auto p : sessions_)
-            v.emplace_back(p->weak_from_this());
+        for(auto it = sessions_.begin(); it != sessions_.end(); it++) {
+            it->second->Update();
+        }
     }
-
-    for (auto const& wp : v)
-        if (auto sp = wp.lock())
-            sp->Send(ss);
 }

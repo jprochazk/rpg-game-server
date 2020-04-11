@@ -7,6 +7,7 @@
 // Official repository: https://github.com/vinniefalco/CppCon2018
 //
 
+#pragma once
 #ifndef SERVER_NETWORK_NET_H
 #define SERVER_NETWORK_NET_H
 

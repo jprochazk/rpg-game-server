@@ -7,16 +7,16 @@
 // Official repository: https://github.com/vinniefalco/CppCon2018
 //
 
+#pragma once
 #ifndef SERVER_NETWORK_SOCKET_LISTENER_H
 #define SERVER_NETWORK_SOCKET_LISTENER_H
+
+#include "common/SharedDefines.h"
 
 #include "network/net.h"
 #include "network/Websocket.h"
 
 #include <spdlog/spdlog.h>
-#include <memory>
-#include <string>
-#include <functional>
 
 // Accepts incoming connections and launches the sessions
 class SocketListener : public std::enable_shared_from_this<SocketListener>

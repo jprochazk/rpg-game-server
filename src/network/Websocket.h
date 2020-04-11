@@ -7,26 +7,18 @@
 // Official repository: https://github.com/vinniefalco/CppCon2018
 //
 
+#pragma once
 #ifndef SERVER_NETWORK_WEBSOCKET_H
 #define SERVER_NETWORK_WEBSOCKET_H
 
+#include "common/SharedDefines.h"
+#include "common/ByteBuffer.h"
 #include "network/net.h"
 
 #include <spdlog/spdlog.h>
 
-#include <cstdlib>
-#include <memory>
-#include <string>
-#include <vector>
-
+class SocketManager;
 class Websocket;
-
-class SocketManager {
-public:
-    virtual void Add(Websocket* session) = 0;
-    virtual void Remove(Websocket* session) = 0;
-
-}; // class SocketManager
 
 /** Represents an active WebSocket connection to the server
 */
@@ -41,11 +33,17 @@ public:
 
     void Run();
     void Send(const std::string ss);
+    bool IsBufferEmpty() const;
+    std::vector<ByteBuffer> GetBuffer();
 private:
-    beast::flat_buffer buffer_;
+    beast::flat_buffer wsBuffer_;
     beast::websocket::stream<beast::tcp_stream> ws_;
+
     bool isAsyncWriting_;
-    std::vector<std::string> writeQueue_;
+    std::vector<std::string> writeBuffer_;
+
+    std::mutex readLock_;
+    std::vector<ByteBuffer> readBuffer_;
     SocketManager* socketManager_;
 
     void Fail(beast::error_code ec, char const* what);
