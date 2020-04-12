@@ -4,7 +4,6 @@
 #define SERVER_WORLD_WORLD_SESSION_H
 
 #include "common/SharedDefines.h"
-#include "common/ByteBuffer.h"
 
 class Websocket;
 class World;

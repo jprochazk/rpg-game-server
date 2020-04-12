@@ -127,7 +127,7 @@ void Websocket::OnRead(beast::error_code ec, std::size_t)
             shared_from_this()));
 }
 
-void Websocket::Send(const std::string ss)
+void Websocket::Send(const ByteBuffer ss)
 {
     // Post our work to the strand, this ensures
     // that the members of `this` will not be
@@ -141,7 +141,7 @@ void Websocket::Send(const std::string ss)
             ss));
 }
 
-void Websocket::OnSend(const std::string ss)
+void Websocket::OnSend(const ByteBuffer ss)
 {
     // Always add to queue
     writeBuffer_.push_back(ss);
@@ -154,7 +154,7 @@ void Websocket::OnSend(const std::string ss)
 
     // We are not currently writing, so send this immediately
     ws_.async_write(
-        net::buffer(writeBuffer_.front()),
+        net::buffer(writeBuffer_.front().GetBuffer()),
         beast::bind_front_handler(
             &Websocket::OnWrite,
             shared_from_this()));
@@ -177,7 +177,7 @@ void Websocket::OnWrite(beast::error_code ec, std::size_t)
 
     // Write another
     ws_.async_write(
-        net::buffer(writeBuffer_.front()),
+        net::buffer(writeBuffer_.front().GetBuffer()),
         beast::bind_front_handler(
             &Websocket::OnWrite,
             shared_from_this()));

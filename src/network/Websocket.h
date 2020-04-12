@@ -32,7 +32,7 @@ public:
     ~Websocket();
 
     void Run();
-    void Send(const std::string ss);
+    void Send(const ByteBuffer ss);
     bool IsBufferEmpty() const;
     std::vector<ByteBuffer> GetBuffer();
 private:
@@ -40,7 +40,7 @@ private:
     beast::websocket::stream<beast::tcp_stream> ws_;
 
     bool isAsyncWriting_;
-    std::vector<std::string> writeBuffer_;
+    std::vector<ByteBuffer> writeBuffer_;
 
     std::mutex readLock_;
     std::vector<ByteBuffer> readBuffer_;
@@ -50,7 +50,7 @@ private:
     void OnAccept(beast::error_code ec);
     void OnRead(beast::error_code ec, std::size_t bytes_transferred);
     void OnWrite(beast::error_code ec, std::size_t bytes_transferred);
-    void OnSend(const std::string ss);
+    void OnSend(const ByteBuffer ss);
 }; // class Websocket
 
 #endif // SERVER_NETWORK_WEBSOCKET_H

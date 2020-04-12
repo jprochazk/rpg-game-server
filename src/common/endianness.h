@@ -149,9 +149,9 @@ static inline double htond(double f) {
 }
 #define ntohd(x)   htond((x))
 
-static inline void NetworkEndian(bool& val) {}
+static inline void NetworkEndian(bool&) {}
 
-static inline void NetworkEndian(uint8_t& val) {}
+static inline void NetworkEndian(uint8_t&) {}
 
 static inline void NetworkEndian(uint16_t& val) {
     val = hton16(val);
@@ -165,7 +165,7 @@ static inline void NetworkEndian(uint64_t& val) {
     val = hton64(val);
 }
 
-static inline void NetworkEndian(int8_t& val) {} // 8 bit - no conversion needed
+static inline void NetworkEndian(int8_t&) {}
 
 static inline void NetworkEndian(int16_t& val) {
     val = hton16(val);
@@ -187,9 +187,9 @@ static inline void NetworkEndian(double& val) {
     val = htond(val);
 }
 
-static inline void HostEndian(bool& val) {}
+static inline void HostEndian(bool&) {}
 
-static inline void HostEndian(uint8_t& val) {}
+static inline void HostEndian(uint8_t&) {}
 
 static inline void HostEndian(uint16_t& val) {
     val = ntoh16(val);
@@ -203,7 +203,7 @@ static inline void HostEndian(uint64_t& val) {
     val = ntoh64(val);
 }
 
-static inline void HostEndian(int8_t& val) {} // 8 bit - no conversion needed
+static inline void HostEndian(int8_t&) {}
 
 static inline void HostEndian(int16_t& val) {
     val = ntoh16(val);

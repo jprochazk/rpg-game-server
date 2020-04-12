@@ -19,6 +19,7 @@ public:
     void StartMainLoop(std::atomic<bool>* exitSignal, float updateRate = 30, int maxConsecutiveUpdates = 5);
 
     WorldTime::TimePoint GetWorldTime();
+    double GetWorldTimestamp();
     std::string GetWorldDate();
 private:
     World();

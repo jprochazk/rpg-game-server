@@ -1,6 +1,5 @@
 
 #include "ByteBuffer.h"
-#include "endianness.h"
 
 ByteBuffer::ByteBuffer(size_t reserve)
     : storage_(reserve), cursor_(0)
@@ -35,15 +34,11 @@ ByteBuffer& ByteBuffer::operator=(ByteBuffer&& other)
     return *this;
 }
 
-ByteBuffer::~ByteBuffer() {}
-
-template<typename T, size_t ALLOC_SIZE>
-void ByteBuffer::Append(T val)
+template<typename T>
+void ByteBuffer::Write(T val)
 {
-    static_assert(ALLOC_SIZE >= sizeof(T), "ByteBuffer::Append(Allocated size must be greater than or equal to size of T)");
-
-    NetworkEndian(val); // network byte-order
-    size_t newSize = cursor_ + ALLOC_SIZE;
+    NetworkEndian(val); // ensure network byte-order
+    size_t newSize = cursor_ + sizeof(T);
     if(storage_.capacity() < newSize) {
         storage_.reserve(newSize);
     }
@@ -60,8 +55,13 @@ bool ByteBuffer::Read(T* val)
     }
     std::memcpy(val, &storage_[cursor_], sizeof(T));
     cursor_ = newCursor_;
-    HostEndian(*val); // host byte-order
+    HostEndian(*val); // ensure host byte-order
     return true;
+}
+
+void ByteBuffer::Reserve(size_t size)
+{
+    storage_.reserve(size);
 }
 
 size_t ByteBuffer::Size() const noexcept
@@ -79,8 +79,7 @@ const uint8_t* ByteBuffer::Data() const noexcept
     return storage_.data();
 }
 
-
-ByteBuffer::operator std::vector<uint8_t>() const
+std::vector<uint8_t> ByteBuffer::GetBuffer() const
 {
     return storage_;
 }

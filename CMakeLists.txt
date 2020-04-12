@@ -45,7 +45,6 @@ include_directories(${CMAKE_SOURCE_DIR}/src)
 set(
     MY_SOURCES
     # common
-    src/common/endianness.h
     src/common/ByteBuffer.cpp
     # network
     src/network/SocketListener.cpp

@@ -69,6 +69,11 @@ WorldTime::TimePoint World::GetWorldTime()
     return worldTime_;
 }
 
+double World::GetWorldTimestamp()
+{
+    return worldTime_.time_since_epoch().count();
+}
+
 std::string World::GetWorldDate()
 {
     return WorldTime::ToString(worldTime_);
