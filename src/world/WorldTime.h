@@ -11,7 +11,7 @@ private:
     virtual ~WorldTime() = 0;
 public:
     using Clock = std::chrono::system_clock;
-    using Duration = std::chrono::duration<double, std::milli>;
+    using Duration = std::chrono::duration<double>;
     using TimePoint = std::chrono::time_point<Clock, Duration>;
 
     static TimePoint Now();

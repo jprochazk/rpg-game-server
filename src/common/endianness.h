@@ -16,8 +16,7 @@
 #ifndef _ENDIANNESS_H
 #define _ENDIANNESS_H
 
-#include <stdlib.h>
-#include <stdint.h>
+#include "SharedDefines.h"
 
 /* Detect platform endianness at compile time */
 
@@ -60,169 +59,36 @@
 #  endif
 #endif
 
-#if defined(bswap16) || defined(bswap32) || defined(bswap64)
-#  error "unexpected define!" // freebsd may define these; probably just need to undefine them
-#endif
-
-/* Define byte-swap functions, using fast processor-native built-ins where possible */
-#if defined(_MSC_VER) // needs to be first because msvc doesn't short-circuit after failing defined(__has_builtin)
-#  define bswap16(x)     _byteswap_ushort((x))
-#  define bswap32(x)     _byteswap_ulong((x))
-#  define bswap64(x)     _byteswap_uint64((x))
-#elif (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)
-#  define bswap16(x)     __builtin_bswap16((x))
-#  define bswap32(x)     __builtin_bswap32((x))
-#  define bswap64(x)     __builtin_bswap64((x))
-#elif defined(__has_builtin) && __has_builtin(__builtin_bswap64)  /* for clang; gcc 5 fails on this and && shortcircuit fails; must be after GCC check */
-#  define bswap16(x)     __builtin_bswap16((x))
-#  define bswap32(x)     __builtin_bswap32((x))
-#  define bswap64(x)     __builtin_bswap64((x))
-#else
-    /* even in this case, compilers often optimize by using native instructions */
-    static inline uint16_t bswap16(uint16_t x) {
-		return ((( x  >> 8 ) & 0xffu ) | (( x  & 0xffu ) << 8 ));
-	}
-    static inline uint32_t bswap32(uint32_t x) {
-        return ((( x & 0xff000000u ) >> 24 ) |
-                (( x & 0x00ff0000u ) >> 8  ) |
-                (( x & 0x0000ff00u ) << 8  ) |
-                (( x & 0x000000ffu ) << 24 ));
+namespace ByteConverter
+{
+    template<size_t T>
+    inline void convert(char *val)
+    {
+        std::swap(*val, *(val + T - 1));
+        convert<T - 2>(val + 1);
     }
-    static inline uint64_t bswap64(uint64_t x) {
-        return ((( x & 0xff00000000000000ull ) >> 56 ) |
-                (( x & 0x00ff000000000000ull ) >> 40 ) |
-                (( x & 0x0000ff0000000000ull ) >> 24 ) |
-                (( x & 0x000000ff00000000ull ) >> 8  ) |
-                (( x & 0x00000000ff000000ull ) << 8  ) |
-                (( x & 0x0000000000ff0000ull ) << 24 ) |
-                (( x & 0x000000000000ff00ull ) << 40 ) |
-                (( x & 0x00000000000000ffull ) << 56 ));
+
+    // specialize size 0 and 1 to not swap anything
+    // because endianness doesn't matter for 1-byte values, and a 0-byte value is invalid
+    template<> inline void convert<0>(char *) { }
+    template<> inline void convert<1>(char *) { }
+
+    template<typename T> inline void apply(T *val)
+    {
+        convert<sizeof(T)>((char *)(val));
     }
-#endif
-
-
-/* Defines network - host byte swaps as needed depending upon platform endianness */
-// note that network order is big endian)
+}
 
 #if defined(__LITTLE_ENDIAN__)
-#  define ntoh16(x)     bswap16((x))
-#  define hton16(x)     bswap16((x))
-#  define ntoh32(x)     bswap32((x))
-#  define hton32(x)     bswap32((x))
-#  define ntoh64(x)     bswap64((x))
-#  define hton64(x)     bswap64((x))
+template<typename T> inline void EndianConvert(T& val) { ByteConverter::apply<T>(&val); }
 #elif defined(__BIG_ENDIAN__)
-#  define ntoh16(x)     (x)
-#  define hton16(x)     (x)
-#  define ntoh32(x)     (x)
-#  define hton32(x)     (x)
-#  define ntoh64(x)     (x)
-#  define hton64(x)     (x)
-#  else
-#    warning "UNKNOWN Platform / endianness; network / host byte swaps not defined."
-#endif
-
-
-//! Convert 32-bit float from host to network byte order
-static inline float htonf(float f) {
-#ifdef __cplusplus
-    static_assert(sizeof(float) == sizeof(uint32_t), "Unexpected float format");
-    uint32_t val = hton32(*(reinterpret_cast<const uint32_t *>(&f)));
-    return *(reinterpret_cast<float *>(&val));
+template<typename T> inline void EndianConvert(T&) { }
 #else
-    uint32_t val = hton32(*(const uint32_t *)(&f));
-    return *((float *)(&val));
+# warning "UNKNOWN Platform / endianness; network / host byte swaps not defined."
 #endif
-}
-#define ntohf(x)   htonf((x))
 
-//! Convert 64-bit double from host to network byte order
-static inline double htond(double f) {
-#ifdef __cplusplus
-    static_assert(sizeof(double) == sizeof(uint64_t), "Unexpected double format");
-    uint64_t val = hton64(*(reinterpret_cast<const uint64_t *>(&f)));
-    return *(reinterpret_cast<double *>(&val));
-#else
-    uint64_t val = hton64(*(const uint64_t *)(&f));
-    return *((double *)(&val));
-#endif
-}
-#define ntohd(x)   htond((x))
-
-static inline void NetworkEndian(bool&) {}
-
-static inline void NetworkEndian(uint8_t&) {}
-
-static inline void NetworkEndian(uint16_t& val) {
-    val = hton16(val);
-}
-
-static inline void NetworkEndian(uint32_t& val) {
-    val = hton32(val);
-}
-
-static inline void NetworkEndian(uint64_t& val) {
-    val = hton64(val);
-}
-
-static inline void NetworkEndian(int8_t&) {}
-
-static inline void NetworkEndian(int16_t& val) {
-    val = hton16(val);
-}
-
-static inline void NetworkEndian(int32_t& val) {
-    val = hton32(val);
-}
-
-static inline void NetworkEndian(int64_t& val) {
-    val = hton64(val);
-}
-
-static inline void NetworkEndian(float& val) {
-    val = htonf(val);
-}
-
-static inline void NetworkEndian(double& val) {
-    val = htond(val);
-}
-
-static inline void HostEndian(bool&) {}
-
-static inline void HostEndian(uint8_t&) {}
-
-static inline void HostEndian(uint16_t& val) {
-    val = ntoh16(val);
-}
-
-static inline void HostEndian(uint32_t& val) {
-    val = ntoh32(val);
-}
-
-static inline void HostEndian(uint64_t& val) {
-    val = ntoh64(val);
-}
-
-static inline void HostEndian(int8_t&) {}
-
-static inline void HostEndian(int16_t& val) {
-    val = ntoh16(val);
-}
-
-static inline void HostEndian(int32_t& val) {
-    val = ntoh32(val);
-}
-
-static inline void HostEndian(int64_t& val) {
-    val = ntoh64(val);
-}
-
-static inline void HostEndian(float& val) {
-    val = ntohf(val);
-}
-
-static inline void HostEndian(double& val) {
-    val = ntohd(val);
-}
+// single byte does not need endian convert
+inline void EndianConvert(uint8_t&) { }
+inline void EndianConvert( int8_t&) { }
 
 #endif //_ENDIANNESS_H

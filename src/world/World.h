@@ -19,7 +19,7 @@ public:
     void StartMainLoop(std::atomic<bool>* exitSignal, float updateRate = 30, int maxConsecutiveUpdates = 5);
 
     WorldTime::TimePoint GetWorldTime();
-    double GetWorldTimestamp();
+    float GetWorldTimestamp();
     std::string GetWorldDate();
 private:
     World();
@@ -30,6 +30,7 @@ private:
     WorldSocketManager socketManager_;
     
     unsigned loopCount_;
+    WorldTime::TimePoint startTime_;
     WorldTime::TimePoint worldTime_;
     
     std::mutex sessionsLock_;

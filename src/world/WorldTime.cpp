@@ -18,7 +18,8 @@ std::string WorldTime::ToString(WorldTime::TimePoint t)
             std::chrono::duration_cast<WorldTime::Clock::duration>(t.time_since_epoch())
         );
         auto time = WorldTime::Clock::to_time_t(wct);
-        return std::string(std::ctime(&time));
+        auto ctime = std::string(std::ctime(&time));
+        return ctime.substr(0, ctime.length() - 1);
     } catch(...) {
         spdlog::error("failed to convert time to ctime");
         return {};

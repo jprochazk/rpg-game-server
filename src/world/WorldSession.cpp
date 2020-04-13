@@ -17,27 +17,51 @@ WorldSession::~WorldSession()
 
 }
 
+typedef struct WriteTest {
+    float       timestamp;
+    std::string date;
+    std::string message;
+} WriteTest;
+ByteBuffer& operator<<(ByteBuffer& buf, const WriteTest& data) {
+    buf.Reserve(4 + 1 + data.date.length() + 1 + data.message.length());
+    buf << data.timestamp;
+    buf << data.date;
+    buf << data.message;
+    return buf;
+}
+typedef struct ReadTest {
+    std::optional<uint32_t>    sequence;
+    std::optional<std::string> message;
+} ReadTest;
+ByteBuffer& operator>>(ByteBuffer& buf, ReadTest& data) {
+    buf >> data.sequence;
+    buf >> data.message;
+    return buf;
+}
+
 void WorldSession::Update()
 {
     if(auto p = socket_->weak_from_this().lock()) {
-        ByteBuffer msg(30);
-        msg.Write<uint8_t>(1);
-        msg.Write<uint16_t>(1);
-        msg.Write<uint32_t>(1);
-        msg.Write<uint64_t>(1);
-        msg.Write<int8_t>(1);
-        msg.Write<int16_t>(1);
-        msg.Write<int32_t>(1);
-        msg.Write<int64_t>(1);
-        msg.Write<float>(1);
-        msg.Write<double>(1);
+        WriteTest write_test = { 
+            World::Instance()->GetWorldTimestamp(), 
+            World::Instance()->GetWorldDate(), 
+            "Hello from the server!" 
+        };
+        ByteBuffer msg;
+        msg << write_test;
+
         p->Send(msg);
         if(!p->IsBufferEmpty()) {
             auto buf = p->GetBuffer();
             spdlog::info("Session ID {} received {} packets", id_, buf.size());
             size_t pktCount = 0;
             for(auto& pkt : buf) {
-                spdlog::info("Packet #{} size: {}", pktCount++, pkt.Size());
+                ReadTest read_test;
+                pkt >> read_test;
+                spdlog::info("Packet #{} size: {}. Data: {{ sequence: {}, message: {} }}", 
+                    pktCount++, pkt.Size(), 
+                    read_test.sequence.value_or(0), read_test.message.value_or("")
+                );
             }
         }
     } else { 

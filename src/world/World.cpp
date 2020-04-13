@@ -5,7 +5,8 @@
 World::World()
     : socketManager_()
     , loopCount_(0)
-    , worldTime_(WorldTime::Now())
+    , startTime_()
+    , worldTime_()
     , sessionsLock_()
     , sessionIdSequence_(0)
     , sessions_()
@@ -48,11 +49,14 @@ WorldSocketManager* World::GetSocketManager()
 
 void World::StartMainLoop(std::atomic<bool>* exitSignal, float updateRate, int maxConsecutiveUpdates)
 {
+    startTime_ = WorldTime::Now();
+    worldTime_ = startTime_;
+
     auto shouldExit = [&exitSignal]()->bool { 
         return exitSignal->load(std::memory_order_acquire); 
     };
 
-    WorldTime::Duration updateTimeDelta(1000.f / updateRate);
+    WorldTime::Duration updateTimeDelta(1.f / updateRate);
     auto consecutiveUpdates = 0;
 
 	while (!shouldExit()) {
@@ -69,9 +73,9 @@ WorldTime::TimePoint World::GetWorldTime()
     return worldTime_;
 }
 
-double World::GetWorldTimestamp()
+float World::GetWorldTimestamp()
 {
-    return worldTime_.time_since_epoch().count();
+    return static_cast<float>(worldTime_.time_since_epoch().count() - startTime_.time_since_epoch().count());
 }
 
 std::string World::GetWorldDate()

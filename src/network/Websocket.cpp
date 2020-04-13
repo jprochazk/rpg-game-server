@@ -154,7 +154,7 @@ void Websocket::OnSend(const ByteBuffer ss)
 
     // We are not currently writing, so send this immediately
     ws_.async_write(
-        net::buffer(writeBuffer_.front().GetBuffer()),
+        net::buffer(writeBuffer_.front().Contents()),
         beast::bind_front_handler(
             &Websocket::OnWrite,
             shared_from_this()));
@@ -177,7 +177,7 @@ void Websocket::OnWrite(beast::error_code ec, std::size_t)
 
     // Write another
     ws_.async_write(
-        net::buffer(writeBuffer_.front().GetBuffer()),
+        net::buffer(writeBuffer_.front().Contents()),
         beast::bind_front_handler(
             &Websocket::OnWrite,
             shared_from_this()));
