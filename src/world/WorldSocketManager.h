@@ -3,7 +3,7 @@
 #ifndef SERVER_WORLD_WORLD_SOCKET_MANAGER_H
 #define SERVER_WORLD_WORLD_SOCKET_MANAGER_H
 
-#include "common/SharedDefines.h"
+#include "pch.h"
 #include "network/SocketManager.h"
 
 class Websocket;

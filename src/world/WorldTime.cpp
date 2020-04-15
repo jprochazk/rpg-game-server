@@ -1,6 +1,5 @@
 
 #include "WorldTime.h"
-#include <spdlog/spdlog.h>
 
 WorldTime::WorldTime() {}
 WorldTime::~WorldTime() {}

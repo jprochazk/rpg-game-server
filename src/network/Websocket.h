@@ -3,11 +3,9 @@
 #ifndef SERVER_NETWORK_WEBSOCKET_H
 #define SERVER_NETWORK_WEBSOCKET_H
 
-#include "common/SharedDefines.h"
+#include "pch.h"
 #include "common/ByteBuffer.h"
 #include "network/net.h"
-
-#include <spdlog/spdlog.h>
 
 class SocketManager;
 class Websocket;

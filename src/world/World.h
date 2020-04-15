@@ -3,11 +3,10 @@
 #ifndef SERVER_WORLD_WORLD_H
 #define SERVER_WORLD_WORLD_H
 
-#include "common/SharedDefines.h"
+#include "pch.h"
 #include "world/WorldSocketManager.h"
 #include "world/WorldSession.h"
 #include "world/WorldTime.h"
-#include <unordered_map>
 
 class Websocket;
 

@@ -40,10 +40,14 @@ find_package(spdlog CONFIG REQUIRED)
 target_include_directories(server PRIVATE ${spdlog_INCLUDE_DIRS})
 target_link_libraries(server PRIVATE spdlog::spdlog_header_only)
 
+# PRECOMPILED HEADER
+target_precompile_headers(server PRIVATE src/pch.h)
+
 # ---- SOURCES ----
 include_directories(${CMAKE_SOURCE_DIR}/src)
 set(
     MY_SOURCES
+    src/pch.cpp
     # common
     src/common/ByteBuffer.cpp
     # network

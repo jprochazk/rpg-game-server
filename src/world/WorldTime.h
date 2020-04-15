@@ -3,7 +3,7 @@
 #ifndef SERVER_WORLD_WORLD_TIME_H
 #define SERVER_WORLD_WORLD_TIME_H
 
-#include "common/SharedDefines.h"
+#include "pch.h"
 
 class WorldTime {
 private:

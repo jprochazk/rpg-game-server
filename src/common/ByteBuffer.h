@@ -1,12 +1,10 @@
 
 #pragma once
-#include <type_traits>
 #ifndef SERVER_COMMON_BYTE_BUFFER_H
 #define SERVER_COMMON_BYTE_BUFFER_H
 
-#include "SharedDefines.h"
-#include "endianness.h"
-#include <spdlog/spdlog.h>
+#include "pch.h"
+#include "common/ByteConvert.h"
 
 class ByteBuffer {
 public:
@@ -36,7 +34,6 @@ public:
     ByteBuffer& operator>>(std::optional<int32_t>& val);
     ByteBuffer& operator>>(std::optional<float>& val);
     ByteBuffer& operator>>(std::optional<std::string>& val);
-    
 
     bool SetCursor(size_t pos);
 
@@ -65,17 +62,17 @@ void ByteBuffer::Write(T val)
         sizeof(T) <= 4, 
         "Write only accepts fundamental types of size 4 bytes and lower"
     );
-
+    // ensure that storage has sufficient capacity
+    if(storage_.capacity() < cursor_ + sizeof(T)) {
+        storage_.reserve(cursor_ + sizeof(T));
+    }
+    // ensure that storage has pre-initialized values
+    if(storage_.size() < cursor_ + sizeof(T)) {
+        storage_.resize(cursor_ + sizeof(T));
+    }
     EndianConvert(val); // ensure network byte-order
-    size_t newSize = cursor_ + sizeof(T);
-    if(storage_.capacity() < newSize) {
-        storage_.reserve(newSize);
-    }
-    if(storage_.size() < newSize) {
-        storage_.resize(newSize);
-    }
     std::memcpy(&storage_[cursor_], (uint8_t*)&val, sizeof(T));
-    cursor_ = newSize;
+    cursor_ += sizeof(T);
 }
 
 

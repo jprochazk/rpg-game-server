@@ -3,12 +3,10 @@
 #ifndef SERVER_NETWORK_SOCKET_LISTENER_H
 #define SERVER_NETWORK_SOCKET_LISTENER_H
 
-#include "common/SharedDefines.h"
+#include "pch.h"
 
 #include "network/net.h"
 #include "network/Websocket.h"
-
-#include <spdlog/spdlog.h>
 
 // Accepts incoming connections and launches the sessions
 class SocketListener : public std::enable_shared_from_this<SocketListener>

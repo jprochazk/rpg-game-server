@@ -3,7 +3,7 @@
 #ifndef SERVER_WORLD_WORLD_SESSION_H
 #define SERVER_WORLD_WORLD_SESSION_H
 
-#include "common/SharedDefines.h"
+#include "pch.h"
 
 class Websocket;
 class World;
