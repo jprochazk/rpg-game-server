@@ -5,14 +5,20 @@
 Websocket::Websocket(
     tcp::socket&& socket,
     SocketManager* socketManager)
-    : ws_(std::move(socket))
+    : wsBuffer_()
+    , ws_(std::move(socket))
+    , shouldClose_(false)
+    , isAsyncWriting_(false)
+    , writeBuffer_()
+    , readLock_()
+    , readBuffer_()
     , socketManager_(socketManager)
 {
 }
 
 Websocket::~Websocket()
 {
-    readLock_.lock();
+    std::lock_guard<std::mutex> lock(readLock_);
 
     // Remove this session from the list of active sessions
     socketManager_->Remove(this);
@@ -45,6 +51,20 @@ void Websocket::Run()
             shared_from_this()));
 }
 
+void Websocket::Close()
+{
+    net::post(
+        ws_.get_executor(),
+        beast::bind_front_handler(
+            &Websocket::OnClose,
+            shared_from_this()));
+}
+
+void Websocket::OnClose()
+{
+    shouldClose_ = true;
+}
+
 void Websocket::Fail(beast::error_code ec, char const* what)
 {
     // Don't report these
@@ -63,6 +83,9 @@ void Websocket::OnAccept(beast::error_code ec)
     socketManager_->Add(this);
 
     spdlog::info("Socket opened");
+
+    if(shouldClose_)
+        return AsyncClose();
 
     // Read a message
     ws_.async_read(
@@ -93,23 +116,28 @@ std::vector<ByteBuffer> Websocket::GetBuffer()
     return buf;
 }
 
-void Websocket::OnRead(beast::error_code ec, std::size_t)
+void Websocket::OnRead(beast::error_code ec, std::size_t read_bytes)
 {
     // Handle the error, if any
     if (ec) return Fail(ec, "read");
 
-    { // creating an inner scope causes the lock_guard to be dropped early
-    std::lock_guard<std::mutex> lock(readLock_);
-
-    std::vector<uint8_t> buf(wsBuffer_.size());
-    boost::asio::buffer_copy(
-        boost::asio::buffer(buf.data(), wsBuffer_.size()),
-        wsBuffer_.data()
-    );
-    readBuffer_.push_back(ByteBuffer{std::move(buf)});
-    // Clear the buffer
-    wsBuffer_.consume(wsBuffer_.size());
+    if(read_bytes < 2 || read_bytes > MAX_PACKET_SIZE) {
+        // don't bother reading messages smaller than 2 bytes (uint16_t opcode) 
+        // or larger than max size
+        wsBuffer_.consume(wsBuffer_.size());
+    } else {
+        std::lock_guard<std::mutex> lock(readLock_);
+        std::vector<uint8_t> buf(wsBuffer_.size());
+        boost::asio::buffer_copy(
+            boost::asio::buffer(buf.data(), wsBuffer_.size()),
+            wsBuffer_.data()
+        );
+        readBuffer_.push_back(ByteBuffer{std::move(buf)});
+        wsBuffer_.consume(wsBuffer_.size());
     }
+
+    if(shouldClose_)
+        return AsyncClose();
 
     // Read another message
     ws_.async_read(
@@ -138,8 +166,8 @@ void Websocket::OnSend(const ByteBuffer ss)
     // Always add to queue
     writeBuffer_.push_back(ss);
 
-    // Are we already writing?
-    if (isAsyncWriting_)
+    // Are we already writing? Is the socket closing?
+    if (isAsyncWriting_ || shouldClose_)
         return;
 
     isAsyncWriting_ = true;
@@ -162,7 +190,8 @@ void Websocket::OnWrite(beast::error_code ec, std::size_t)
     writeBuffer_.erase(writeBuffer_.begin());
 
     // Stop writing if the queue is empty
-    if (writeBuffer_.empty()) {
+    // or we should close
+    if (writeBuffer_.empty() || shouldClose_) {
         isAsyncWriting_ = false;
         return;
     }
@@ -173,4 +202,18 @@ void Websocket::OnWrite(beast::error_code ec, std::size_t)
         beast::bind_front_handler(
             &Websocket::OnWrite,
             shared_from_this()));
+}
+
+void Websocket::AsyncClose() {
+    ws_.async_close(
+        beast::websocket::close_code::normal,
+        beast::bind_front_handler(
+            &Websocket::OnAsyncClose,
+            shared_from_this()
+        )
+    );
+}
+
+void Websocket::OnAsyncClose(beast::error_code ec) {
+    if(ec) return Fail(ec, "Close");
 }

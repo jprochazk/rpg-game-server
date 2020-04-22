@@ -54,7 +54,9 @@ set(
     src/network/SocketListener.cpp
     src/network/Websocket.cpp
     # world
+    src/world/Opcode.cpp
     src/world/World.cpp
+    src/world/WorldPacket.cpp
     src/world/WorldSocketManager.cpp
     src/world/WorldSession.cpp
     src/world/WorldTime.cpp

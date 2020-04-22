@@ -95,10 +95,11 @@ std::optional<T> ByteBuffer::Read()
     }
 
     T val; // init the value
-    std::memcpy(&val, &storage_[cursor_], sizeof(T)); // copy it from storage
+    // copy to it from storage
+    std::memcpy(&val, &storage_[cursor_], sizeof(T));
     EndianConvert(val); // ensure host byte-order
     cursor_ += sizeof(T); // increment cursor
-    return val; // return the value
+    return {val}; // return the value
 }
 
 #endif // SERVER_COMMON_BYTE_BUFFER_H

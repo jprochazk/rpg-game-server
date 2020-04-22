@@ -3,6 +3,7 @@
 #include "common/ByteBuffer.h"
 #include "network/Websocket.h"
 #include "world/World.h"
+#include "world/Opcode.h"
 
 WorldSession::WorldSession(
     uint16_t id, 
@@ -14,68 +15,48 @@ WorldSession::WorldSession(
 
 WorldSession::~WorldSession()
 {
-
-}
-
-typedef struct WriteTest {
-    float       timestamp;
-    std::string date;
-    std::string message;
-} WriteTest;
-ByteBuffer& operator<<(ByteBuffer& buf, const WriteTest& data) {
-    buf.Reserve(4 + 1 + data.date.length() + 1 + data.message.length());
-    buf << data.timestamp;
-    buf << data.date;
-    buf << data.message;
-    return buf;
-}
-typedef struct ReadTest {
-    std::optional<uint32_t>    sequence;
-    std::optional<std::string> message;
-} ReadTest;
-ByteBuffer& operator>>(ByteBuffer& buf, ReadTest& data) {
-    buf >> data.sequence;
-    buf >> data.message;
-    return buf;
+    Close();
 }
 
 void WorldSession::Update()
 {
     if(auto p = socket_->weak_from_this().lock()) {
-        WriteTest write_test = { 
-            World::Instance()->GetWorldTimestamp(), 
-            World::Instance()->GetWorldDate(), 
-            "Hello from the server!" 
-        };
-        ByteBuffer msg;
-        msg << write_test;
-
-        p->Send(msg);
         if(!p->IsBufferEmpty()) {
             auto buf = p->GetBuffer();
-            spdlog::info("Session ID {} received {} packets", id_, buf.size());
-            size_t pktCount = 0;
-            for(auto& pkt : buf) {
-                ReadTest read_test;
-                pkt >> read_test;
-                spdlog::info("Packet #{} size: {}. Data: {{ sequence: {}, message: {} }}", 
-                    pktCount++, pkt.Size(), 
-                    read_test.sequence.value_or(0), read_test.message.value_or("")
-                );
+            auto currTime = World::Instance()->GetTimeStamp();
+            for(size_t i = 0, len = buf.size(); i < len; i++) {
+                WorldPacket pkt(std::move(buf[i]), currTime);
+                if(!pkt.IsValid()) {
+                    continue;
+                }
+
+                if(auto handler = OPCODE_TABLE[pkt.GetOpcode()])
+                    handler(this, pkt);
             }
         }
-    } else { 
-        // happens if socket is closed and session still updates
-        // just silently ignore
     }
 }
 
-void WorldSession::SendPacket()
+void WorldSession::Close()
 {
-    
+    if(auto p = socket_->weak_from_this().lock()) {
+        p->Close();
+    }
 }
 
-bool WorldSession::CompareSocketPtr(Websocket* that)
+void WorldSession::SendPacket(WorldPacket packet)
+{
+    if(auto p = socket_->weak_from_this().lock()) {
+        p->Send(packet);
+    }
+}
+
+bool WorldSession::CheckIdentity(Websocket* that) const noexcept
 {
     return socket_ == that;
+}
+
+uint16_t WorldSession::GetId() const noexcept
+{
+    return id_;
 }

@@ -4,6 +4,8 @@
 #define SERVER_WORLD_WORLD_SESSION_H
 
 #include "pch.h"
+#include "common/ByteBuffer.h"
+#include "world/WorldPacket.h"
 
 class Websocket;
 class World;
@@ -18,11 +20,16 @@ public:
     /// Update the session
     void Update();
 
-    /// UNIMPLEMENTED
-    void SendPacket(/*WorldPacket packet*/);
+    /// Close the session
+    void Close();
+
+    /// Send a single packet to the session
+    void SendPacket(WorldPacket packet);
 
     /// Used to identify a session by the underlying Websocket pointer address
-    bool CompareSocketPtr(Websocket* that);
+    bool CheckIdentity(Websocket* that) const noexcept;
+
+    uint16_t GetId() const noexcept;
 private:
     uint16_t id_;
     Websocket* socket_;
